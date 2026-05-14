@@ -1,0 +1,24 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model BusinessCard {
+  id            String   @id @default(cuid())
+  name          String
+  title         String
+  company       String
+  email         String
+  phone         String
+  website       String
+  category      String   @default("Other")
+  aiDescription String
+  userNotes     String   @default("")
+  imagePath     String?
+  accent        String?
+  capturedAt    DateTime @default(now())
+}
