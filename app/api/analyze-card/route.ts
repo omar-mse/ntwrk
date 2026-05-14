@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
 import { GoogleGenerativeAI } from "@google/generative-ai"
-import { prisma } from "@/lib/prisma"
-import { writeFile, mkdir } from "fs/promises"
-import path from "path"
 import { randomUUID } from "crypto"
 import type { Category } from "@/lib/types"
 
@@ -41,15 +38,6 @@ export async function POST(request: NextRequest) {
   const bytes = await file.arrayBuffer()
   const buffer = Buffer.from(bytes)
 
-  // Save image to public/uploads/
-  const ext = (file.name.split(".").pop() ?? "jpg").toLowerCase()
-  const fileName = `${randomUUID()}.${ext}`
-  const uploadsDir = path.join(process.cwd(), "public", "uploads")
-  await mkdir(uploadsDir, { recursive: true })
-  await writeFile(path.join(uploadsDir, fileName), buffer)
-  const imagePath = `/uploads/${fileName}`
-
-  // Send to Gemini
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" })
   let result
   try {
@@ -91,34 +79,18 @@ export async function POST(request: NextRequest) {
 
   const category = (parsed.category in CATEGORY_ACCENTS ? parsed.category : "Other") as Category
 
-  const card = await prisma.businessCard.create({
-    data: {
-      name: parsed.name || "Unknown",
-      title: parsed.title || "",
-      company: parsed.company || "",
-      email: parsed.email || "",
-      phone: parsed.phone || "",
-      website: parsed.website || "",
-      category,
-      aiDescription: parsed.aiDescription || "",
-      imagePath,
-      accent: CATEGORY_ACCENTS[category],
-    },
-  })
-
   return NextResponse.json({
-    id: card.id,
-    name: card.name,
-    title: card.title,
-    company: card.company,
-    email: card.email,
-    phone: card.phone,
-    website: card.website,
-    category: card.category as Category,
-    aiDescription: card.aiDescription,
-    userNotes: card.userNotes,
-    imagePath: card.imagePath,
-    accent: card.accent,
-    capturedAt: card.capturedAt.toISOString(),
+    id: randomUUID(),
+    name: parsed.name || "Unknown",
+    title: parsed.title || "",
+    company: parsed.company || "",
+    email: parsed.email || "",
+    phone: parsed.phone || "",
+    website: parsed.website || "",
+    category,
+    aiDescription: parsed.aiDescription || "",
+    userNotes: "",
+    accent: CATEGORY_ACCENTS[category],
+    capturedAt: new Date().toISOString(),
   })
 }

@@ -30,32 +30,21 @@ export function DashboardView({ initialCards }: DashboardViewProps) {
     setNotes((prev) => ({ ...prev, [newCard.id]: "" }))
   }
 
-  async function handleNotesChange(id: string, value: string) {
+  function handleNotesChange(id: string, value: string) {
     setNotes((prev) => ({ ...prev, [id]: value }))
-    await fetch(`/api/cards/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userNotes: value }),
-    })
   }
 
-  async function handleDelete(id: string) {
+  function handleDelete(id: string) {
     setCards((prev) => prev.filter((c) => c.id !== id))
     setNotes((prev) => {
       const next = { ...prev }
       delete next[id]
       return next
     })
-    await fetch(`/api/cards/${id}`, { method: "DELETE" })
   }
 
-  async function handleCategoryChange(id: string, category: string, accent: string) {
+  function handleCategoryChange(id: string, category: string, accent: string) {
     setCards((prev) => prev.map((c) => (c.id === id ? { ...c, category, accent } : c)))
-    await fetch(`/api/cards/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ category, accent }),
-    })
   }
 
   return (

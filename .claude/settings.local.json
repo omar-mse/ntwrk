@@ -17,7 +17,11 @@
       "PowerShell(taskkill *)",
       "Bash(pnpm tsc *)",
       "Bash(npx tsc *)",
-      "Bash(pnpm lint *)"
+      "Bash(pnpm lint *)",
+      "Bash(Remove-Item \"C:\\\\Antigravity\\\\card-sorter\\\\app\\\\api\\\\cards\\\\route.ts\" -Force)",
+      "Bash(Remove-Item \"C:\\\\Antigravity\\\\card-sorter\\\\app\\\\api\\\\cards\\\\[id]\\\\route.ts\" -Force)",
+      "Bash(Remove-Item \"C:\\\\Antigravity\\\\card-sorter\\\\app\\\\api\\\\cards\\\\[id]\" -Force)",
+      "Bash(Remove-Item \"C:\\\\Antigravity\\\\card-sorter\\\\app\\\\api\\\\cards\" -Force)"
     ]
   }
 }
