@@ -1,9 +1,8 @@
 import type { Metadata } from "next"
-import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google"
+import { Geist, Geist_Mono, Instrument_Serif, Cormorant_Garamond } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { SearchProvider } from "@/components/search-provider"
-import { SiteHeader } from "@/components/site-header"
 
 
 const geistSans = Geist({
@@ -23,6 +22,13 @@ const instrumentSerif = Instrument_Serif({
   style: ["normal", "italic"],
 })
 
+const cormorant = Cormorant_Garamond({
+  variable: "--font-cormorant",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  style: ["normal", "italic"],
+})
+
 export const metadata: Metadata = {
   title: "Cards — Your Digital Rolodex",
   description: "A minimalist digital rolodex for your business contacts.",
@@ -37,7 +43,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} ${cormorant.variable} h-full antialiased`}
     >
       <head>
         {/* Inline FOUC-prevention: runs before React hydrates, sets .dark on <html> */}
@@ -50,10 +56,7 @@ export default function RootLayout({
       <body className="min-h-full bg-background text-foreground">
         <ThemeProvider>
           <SearchProvider>
-            <div className="flex min-h-screen flex-col">
-              <SiteHeader />
-              {children}
-            </div>
+            {children}
           </SearchProvider>
         </ThemeProvider>
       </body>

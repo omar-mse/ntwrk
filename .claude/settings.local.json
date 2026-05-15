@@ -23,7 +23,11 @@
       "Bash(Remove-Item \"C:\\\\Antigravity\\\\card-sorter\\\\app\\\\api\\\\cards\\\\[id]\" -Force)",
       "Bash(Remove-Item \"C:\\\\Antigravity\\\\card-sorter\\\\app\\\\api\\\\cards\" -Force)",
       "Bash(git stash *)",
-      "Bash(gh repo *)"
+      "Bash(gh repo *)",
+      "Bash(git show *)",
+      "Bash(pnpm install *)",
+      "Skill(my-frontend-design)",
+      "Bash(pnpm exec *)"
     ]
   }
 }

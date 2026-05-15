@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { GoogleGenerativeAI } from "@google/generative-ai"
-import { randomUUID } from "crypto"
+import { createClient } from "@/lib/supabase/server"
+import { rowToCard } from "@/lib/supabase/cards"
 import type { Category } from "@/lib/types"
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
@@ -28,6 +29,10 @@ const CATEGORY_ACCENTS: Record<string, string> = {
 }
 
 export async function POST(request: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
   const formData = await request.formData()
   const file = formData.get("file") as File | null
 
@@ -79,18 +84,28 @@ export async function POST(request: NextRequest) {
 
   const category = (parsed.category in CATEGORY_ACCENTS ? parsed.category : "Other") as Category
 
-  return NextResponse.json({
-    id: randomUUID(),
-    name: parsed.name || "Unknown",
-    title: parsed.title || "",
-    company: parsed.company || "",
-    email: parsed.email || "",
-    phone: parsed.phone || "",
-    website: parsed.website || "",
-    category,
-    aiDescription: parsed.aiDescription || "",
-    userNotes: "",
-    accent: CATEGORY_ACCENTS[category],
-    capturedAt: new Date().toISOString(),
-  })
+  const { data: row, error } = await supabase
+    .from("cards")
+    .insert({
+      user_id: user.id,
+      name: parsed.name || "Unknown",
+      title: parsed.title || "",
+      company: parsed.company || "",
+      email: parsed.email || "",
+      phone: parsed.phone || "",
+      website: parsed.website || "",
+      category,
+      ai_description: parsed.aiDescription || "",
+      user_notes: "",
+      accent: CATEGORY_ACCENTS[category],
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error("[analyze-card] DB insert error:", error.message)
+    return NextResponse.json({ error: "Failed to save card", detail: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json(rowToCard(row))
 }

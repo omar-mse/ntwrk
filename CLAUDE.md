@@ -38,4 +38,19 @@ Next.js 16 App Router + React 19. `app/` holds only server components (`layout.t
 
 ## Data shape
 
-`lib/types.ts` defines `ContactCard` — this mirrors the eventual Gemini 1.5 Flash response. `lib/mock-data.ts` seeds 9 cards. `DashboardView` owns all mutable state (cards array + notes record); child components receive data and callbacks as props.
+`lib/types.ts` defines `ContactCard`. `DashboardView` owns all mutable state (cards array + notes record); child components receive data and callbacks as props. Mutations call the REST API (`/api/cards/[id]`) which in turn hits Supabase; notes changes are debounced 600 ms.
+
+## Supabase / Auth
+
+Schema lives in `supabase/migrations/0001_init.sql` — run via the Supabase dashboard SQL editor or `supabase db push`.
+
+**Client factories** in `lib/supabase/`:
+- `server.ts` — cookie-based server client (`@supabase/ssr`); use in Server Components and Route Handlers
+- `client.ts` — browser client; use in `"use client"` components
+- `middleware.ts` — `updateSession()` called by `middleware.ts` at the root to refresh tokens on every request
+
+**Auth flow**: `app/login/page.tsx` renders `components/login-form.tsx` (email+password + Google OAuth). OAuth callback is handled by `app/auth/callback/route.ts`. Sign-out is in `components/site-header.tsx`.
+
+**RLS**: The `cards` table has row-level security enabled. All four policies (`SELECT`, `INSERT`, `UPDATE`, `DELETE`) gate on `auth.uid() = user_id`. The Supabase server client in route handlers inherits the user's session from cookies — RLS is enforced automatically.
+
+**Row mapping**: `lib/supabase/cards.ts` exports `rowToCard()` which translates snake_case DB columns to camelCase `ContactCard`. Use it wherever DB rows are converted for the UI.

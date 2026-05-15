@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback, useRef } from "react"
 import type { ContactCard } from "@/lib/types"
 import { CardGrid } from "./card-grid"
 import { useSearch } from "./search-provider"
@@ -16,6 +16,8 @@ export function DashboardView({ initialCards }: DashboardViewProps) {
   )
   const { query } = useSearch()
 
+  const notesTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+
   const filteredCards = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return cards
@@ -30,9 +32,17 @@ export function DashboardView({ initialCards }: DashboardViewProps) {
     setNotes((prev) => ({ ...prev, [newCard.id]: "" }))
   }
 
-  function handleNotesChange(id: string, value: string) {
+  const handleNotesChange = useCallback((id: string, value: string) => {
     setNotes((prev) => ({ ...prev, [id]: value }))
-  }
+    clearTimeout(notesTimers.current[id])
+    notesTimers.current[id] = setTimeout(() => {
+      fetch(`/api/cards/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userNotes: value }),
+      }).catch(console.error)
+    }, 600)
+  }, [])
 
   function handleDelete(id: string) {
     setCards((prev) => prev.filter((c) => c.id !== id))
@@ -41,10 +51,16 @@ export function DashboardView({ initialCards }: DashboardViewProps) {
       delete next[id]
       return next
     })
+    fetch(`/api/cards/${id}`, { method: "DELETE" }).catch(console.error)
   }
 
   function handleCategoryChange(id: string, category: string, accent: string) {
     setCards((prev) => prev.map((c) => (c.id === id ? { ...c, category, accent } : c)))
+    fetch(`/api/cards/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ category, accent }),
+    }).catch(console.error)
   }
 
   return (
