@@ -23,11 +23,11 @@ export function SiteHeader({ userEmail }: SiteHeaderProps) {
 
   return (
     <header className="sticky top-0 z-30 w-full border-b border-white/40 dark:border-white/5 bg-white/70 dark:bg-slate-950/60 backdrop-blur-2xl">
-      <div className="mx-auto flex h-14 max-w-screen-2xl items-center gap-4 px-4 sm:px-8 lg:px-12 xl:px-16">
-        {/* Wordmark */}
+      <div className="mx-auto grid h-14 max-w-screen-2xl grid-cols-[1fr_auto_1fr] items-center px-4 sm:px-8 lg:px-12 xl:px-16">
+        {/* Wordmark — left */}
         <a
           href="/"
-          className="flex shrink-0 items-center gap-2 select-none"
+          className="flex shrink-0 items-center select-none"
           aria-label="Cards home"
         >
           <span
@@ -38,9 +38,9 @@ export function SiteHeader({ userEmail }: SiteHeaderProps) {
           </span>
         </a>
 
-        {/* Search — hidden on mobile */}
-        <div className="hidden flex-1 justify-center md:flex">
-          <div className="relative w-full max-w-xs">
+        {/* Search — center */}
+        <div className="hidden md:block">
+          <div className="relative w-64">
             <Search
               className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
               aria-hidden="true"
@@ -55,21 +55,20 @@ export function SiteHeader({ userEmail }: SiteHeaderProps) {
             />
           </div>
         </div>
+        <div className="md:hidden" />
 
-        <div className="ml-auto flex items-center gap-2">
+        {/* Right controls */}
+        <div className="flex items-center justify-end gap-2">
           <ThemeToggle />
           {userEmail && (
-            <>
-              <span className="hidden text-xs text-muted-foreground sm:block">{userEmail}</span>
-              <button
-                onClick={handleSignOut}
-                title="Sign out"
-                className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                aria-label="Sign out"
-              >
-                <LogOut className="size-3.5" strokeWidth={1.5} />
-              </button>
-            </>
+            <button
+              onClick={handleSignOut}
+              title="Sign out"
+              className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label="Sign out"
+            >
+              <LogOut className="size-3.5" strokeWidth={1.5} />
+            </button>
           )}
         </div>
       </div>

@@ -30,8 +30,8 @@ const cormorant = Cormorant_Garamond({
 })
 
 export const metadata: Metadata = {
-  title: "Cards — Your Digital Rolodex",
-  description: "A minimalist digital rolodex for your business contacts.",
+  title: "ntwrk",
+  description: "AI-powered business card index.",
 }
 
 export default function RootLayout({
