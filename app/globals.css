@@ -96,3 +96,7 @@ body {
 .font-display {
   font-family: var(--font-instrument-serif), Georgia, serif;
 }
+
+.italic {
+  font-family: var(--font-playfair), Georgia, serif;
+}

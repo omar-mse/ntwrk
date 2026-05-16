@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { Mail, Phone, Globe, X, Copy, Check, Trash2, Pencil, Plus } from "lucide-react"
-import { ContactCard } from "@/lib/types"
+import { ContactCard, CustomCategory } from "@/lib/types"
 import {
   CategoryBadge,
   PRESET_CATEGORIES,
@@ -10,6 +10,23 @@ import {
   getAccentColor,
 } from "./category-badge"
 import { cn } from "@/lib/utils"
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 
 const SWATCH_COLORS = [
   "#6366f1", "#8b5cf6", "#ec4899", "#ef4444",
@@ -20,10 +37,12 @@ const SWATCH_COLORS = [
 interface CardDetailProps {
   card: ContactCard
   notes: string
+  customCategories: CustomCategory[]
+  onCustomCategoriesChange: (cats: CustomCategory[]) => void
   onNotesChange: (value: string) => void
   onClose: () => void
   onDelete: () => void
-  onCategoryChange: (category: string, accent: string) => void
+  onTagsChange: (tags: CustomCategory[]) => void
 }
 
 function CopyRow({
@@ -66,14 +85,70 @@ function CopyRow({
   )
 }
 
-export function CardDetail({ card, notes, onNotesChange, onClose, onDelete, onCategoryChange }: CardDetailProps) {
+function SortableTagChip({ id, category, accent }: { id: string; category: string; accent: string }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+        cursor: isDragging ? "grabbing" : "grab",
+        touchAction: "none",
+      }}
+      {...attributes}
+      {...listeners}
+    >
+      <CategoryBadge category={category} color={accent} />
+    </div>
+  )
+}
+
+export function CardDetail({ card, notes, customCategories, onCustomCategoriesChange, onNotesChange, onClose, onDelete, onTagsChange }: CardDetailProps) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = card.tags.findIndex((t) => t.name === active.id)
+    const newIndex = card.tags.findIndex((t) => t.name === over.id)
+    onTagsChange(arrayMove(card.tags, oldIndex, newIndex))
+  }
+
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [categoryOpen, setCategoryOpen] = useState(false)
   const [creatingTag, setCreatingTag] = useState(false)
   const [newTagName, setNewTagName] = useState("")
   const [newTagColor, setNewTagColor] = useState(SWATCH_COLORS[0])
+  const [hiddenPresets, setHiddenPresets] = useState<string[]>([])
   const categoryRef = useRef<HTMLDivElement>(null)
   const newTagInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    try { setHiddenPresets(JSON.parse(localStorage.getItem("ntwrk:hidden-presets") ?? "[]")) } catch {}
+  }, [])
+
+  function isSelected(name: string) {
+    return card.tags.some((t) => t.name === name)
+  }
+
+  function toggleTag(name: string, accent: string) {
+    const next = isSelected(name)
+      ? card.tags.filter((t) => t.name !== name)
+      : [...card.tags, { name, accent }]
+    onTagsChange(next)
+  }
+
+  function hidePreset(name: string) {
+    const next = [...new Set([...hiddenPresets, name])]
+    setHiddenPresets(next)
+    localStorage.setItem("ntwrk:hidden-presets", JSON.stringify(next))
+    if (isSelected(name)) onTagsChange(card.tags.filter((t) => t.name !== name))
+  }
 
   useEffect(() => {
     if (!categoryOpen) return
@@ -92,23 +167,40 @@ export function CardDetail({ card, notes, onNotesChange, onClose, onDelete, onCa
     if (creatingTag) newTagInputRef.current?.focus()
   }, [creatingTag])
 
-  function handlePickPreset(cat: string) {
-    onCategoryChange(cat, (categoryAccentColor as Record<string, string>)[cat])
-    setCategoryOpen(false)
-    setCreatingTag(false)
+  function handleDeleteCustomCategory(name: string) {
+    onCustomCategoriesChange(customCategories.filter((c) => c.name !== name))
+    if (isSelected(name)) onTagsChange(card.tags.filter((t) => t.name !== name))
+    fetch(`/api/categories/${encodeURIComponent(name)}`, { method: "DELETE" }).catch(() => {})
   }
 
-  function handleSaveCustomTag() {
+  async function handleSaveCustomTag() {
     const name = newTagName.trim()
     if (!name) return
-    onCategoryChange(name, newTagColor)
-    setCategoryOpen(false)
+    try {
+      const res = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, accent: newTagColor }),
+      })
+      if (res.ok) {
+        const saved: CustomCategory = await res.json()
+        onCustomCategoriesChange(
+          customCategories.some((c) => c.name === saved.name)
+            ? customCategories.map((c) => c.name === saved.name ? saved : c)
+            : [...customCategories, saved]
+        )
+        toggleTag(saved.name, saved.accent)
+      }
+    } catch {
+      // proceed anyway — toggle locally
+      toggleTag(name, newTagColor)
+    }
     setCreatingTag(false)
     setNewTagName("")
     setNewTagColor(SWATCH_COLORS[0])
   }
 
-  const accentColor = getAccentColor(card.category, card.accent)
+  const primaryAccent = card.tags[0] ? getAccentColor(card.tags[0].name, card.tags[0].accent) : "#94a3b8"
 
   return (
     <div
@@ -123,7 +215,7 @@ export function CardDetail({ card, notes, onNotesChange, onClose, onDelete, onCa
       {/* Accent gradient header */}
       <div
         className="absolute inset-x-0 top-0 h-1 rounded-t-3xl"
-        style={{ background: accentColor }}
+        style={{ background: primaryAccent }}
         aria-hidden="true"
       />
 
@@ -167,35 +259,97 @@ export function CardDetail({ card, notes, onNotesChange, onClose, onDelete, onCa
       <div className="p-7 pt-8">
         {/* Header */}
         <div className="mb-5">
-          {/* Editable category badge */}
+          {/* Tags row with picker */}
           <div className="mb-3" ref={categoryRef}>
-            <div className="relative inline-block">
+            <div className="relative inline-flex flex-wrap items-center gap-1.5">
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={card.tags.map((t) => t.name)} strategy={rectSortingStrategy}>
+                  {card.tags.map((t) => (
+                    <SortableTagChip key={t.name} id={t.name} category={t.name} accent={t.accent} />
+                  ))}
+                </SortableContext>
+              </DndContext>
               <button
                 onClick={() => { setCategoryOpen((v) => !v); setCreatingTag(false) }}
-                aria-label="Change category"
-                className="group flex items-center gap-1 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                aria-label="Edit tags"
+                className="flex items-center gap-0.5 rounded-full p-1 text-muted-foreground/50 outline-none transition-colors hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
               >
-                <CategoryBadge category={card.category} color={card.accent ?? undefined} />
-                <Pencil className="size-2.5 text-muted-foreground/50 transition-opacity opacity-0 group-hover:opacity-100" />
+                <Pencil className="size-2.5" />
               </button>
 
               {categoryOpen && (
                 <div className="absolute left-0 top-full mt-1.5 z-20 min-w-[160px] rounded-2xl bg-white dark:bg-slate-800 p-1.5 shadow-xl ring-1 ring-slate-200/80 dark:ring-slate-700/50">
                   {!creatingTag ? (
                     <>
-                      {/* Preset list */}
-                      {PRESET_CATEGORIES.map((cat) => (
-                        <button
-                          key={cat}
-                          onClick={() => handlePickPreset(cat)}
+                      {/* Preset list (excluding Other) */}
+                      {PRESET_CATEGORIES.filter((cat) => cat !== "Other" && !hiddenPresets.includes(cat)).map((cat) => (
+                        <div
+                          key={`preset-${cat}`}
                           className={cn(
-                            "flex w-full items-center rounded-xl px-2 py-1.5 transition-colors hover:bg-muted/60",
-                            cat === card.category && "bg-muted/40"
+                            "group flex w-full items-center justify-between rounded-xl px-2 py-1.5 transition-colors hover:bg-muted/60",
+                            isSelected(cat) && "bg-muted/40"
                           )}
                         >
-                          <CategoryBadge category={cat} />
-                        </button>
+                          <button type="button" onClick={() => toggleTag(cat, (categoryAccentColor as Record<string, string>)[cat])} className="flex flex-1 items-center transition-all duration-150 hover:scale-110 origin-left">
+                            <CategoryBadge category={cat} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => hidePreset(cat)}
+                            aria-label={`Remove ${cat} from picker`}
+                            className="ml-1 hidden size-4 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-950/40 dark:hover:text-red-400 group-hover:flex"
+                          >
+                            <X className="size-2.5" strokeWidth={2.5} />
+                          </button>
+                        </div>
                       ))}
+                      {/* Custom tags (exclude anything already shown as a preset) */}
+                      {customCategories.filter((cat) => !(PRESET_CATEGORIES as readonly string[]).includes(cat.name)).map((cat) => (
+                        <div
+                          key={`custom-${cat.name}`}
+                          className={cn(
+                            "group flex w-full items-center justify-between rounded-xl px-2 py-1.5 transition-colors hover:bg-muted/60",
+                            isSelected(cat.name) && "bg-muted/40"
+                          )}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => toggleTag(cat.name, cat.accent)}
+                            className="flex flex-1 items-center transition-all duration-150 hover:scale-110 origin-left"
+                          >
+                            <CategoryBadge category={cat.name} color={cat.accent} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCustomCategory(cat.name)}
+                            aria-label={`Delete ${cat.name} tag`}
+                            className="ml-1 hidden size-4 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-950/40 dark:hover:text-red-400 group-hover:flex"
+                          >
+                            <X className="size-2.5" strokeWidth={2.5} />
+                          </button>
+                        </div>
+                      ))}
+                      {/* Other — always last preset */}
+                      {!hiddenPresets.includes("Other") && (
+                        <div
+                          className={cn(
+                            "group flex w-full items-center justify-between rounded-xl px-2 py-1.5 transition-colors hover:bg-muted/60",
+                            isSelected("Other") && "bg-muted/40"
+                          )}
+                        >
+                          <button type="button" onClick={() => toggleTag("Other", categoryAccentColor.Other)} className="flex flex-1 items-center transition-all duration-150 hover:scale-110 origin-left">
+                            <CategoryBadge category="Other" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => hidePreset("Other")}
+                            aria-label="Remove Other from picker"
+                            className="ml-1 hidden size-4 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-950/40 dark:hover:text-red-400 group-hover:flex"
+                          >
+                            <X className="size-2.5" strokeWidth={2.5} />
+                          </button>
+                        </div>
+                      )}
                       <div className="my-1 h-px bg-border/60" />
                       {/* New tag button */}
                       <button

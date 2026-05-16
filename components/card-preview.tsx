@@ -1,14 +1,16 @@
 "use client"
 
 import { useState } from "react"
-import { X, CheckCircle2 } from "lucide-react"
+import { X, CheckCircle2, Loader2 } from "lucide-react"
 import { ContactCard } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { CategoryBadge } from "./category-badge"
 
 interface CardPreviewProps {
   card: ContactCard
   onConfirm: (card: ContactCard) => void
   onCancel: () => void
+  saving?: boolean
 }
 
 function Field({
@@ -42,7 +44,7 @@ function Field({
   )
 }
 
-export function CardPreview({ card, onConfirm, onCancel }: CardPreviewProps) {
+export function CardPreview({ card, onConfirm, onCancel, saving = false }: CardPreviewProps) {
   const [draft, setDraft] = useState<ContactCard>(card)
 
   function set<K extends keyof ContactCard>(key: K, value: ContactCard[K]) {
@@ -95,6 +97,20 @@ export function CardPreview({ card, onConfirm, onCancel }: CardPreviewProps) {
           <Field label="Website" value={draft.website} onChange={(v) => set("website", v)} />
         </div>
 
+        {/* AI-assigned tags — read-only */}
+        {draft.tags.length > 0 && (
+          <div className="mt-4">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+              Tags
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {draft.tags.map((t) => (
+                <CategoryBadge key={t.name} category={t.name} color={t.accent} />
+              ))}
+            </div>
+          </div>
+        )}
+
         {draft.aiDescription && (
           <div className="mt-4 rounded-2xl bg-muted/50 px-4 py-3">
             <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
@@ -107,16 +123,22 @@ export function CardPreview({ card, onConfirm, onCancel }: CardPreviewProps) {
         <div className="mt-6 flex items-center justify-end gap-2">
           <button
             onClick={onCancel}
-            className="rounded-full px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+            disabled={saving}
+            className="rounded-full px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Cancel
           </button>
           <button
             onClick={() => onConfirm(draft)}
-            className="flex items-center gap-2 rounded-full bg-foreground px-5 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/80"
+            disabled={saving}
+            className="flex items-center gap-2 rounded-full bg-foreground px-5 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/80 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <CheckCircle2 className="size-4" strokeWidth={2} />
-            Add Card
+            {saving ? (
+              <Loader2 className="size-4 animate-spin" strokeWidth={2} />
+            ) : (
+              <CheckCircle2 className="size-4" strokeWidth={2} />
+            )}
+            {saving ? "Saving…" : "Add Card"}
           </button>
         </div>
       </div>

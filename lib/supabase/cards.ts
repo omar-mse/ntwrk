@@ -10,10 +10,9 @@ export function rowToCard(row: any): ContactCard {
     email: row.email,
     phone: row.phone,
     website: row.website,
-    category: row.category,
+    tags: Array.isArray(row.tags) ? row.tags : [],
     aiDescription: row.ai_description,
     userNotes: row.user_notes,
-    accent: row.accent ?? undefined,
     capturedAt: row.captured_at,
   }
 }

@@ -2,6 +2,7 @@
 
 import { Search, LogOut } from "lucide-react"
 import { ThemeToggle } from "./theme-toggle"
+import { Button } from "@/components/ui/button"
 import { useSearch } from "./search-provider"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
@@ -61,14 +62,16 @@ export function SiteHeader({ userEmail }: SiteHeaderProps) {
         <div className="flex items-center justify-end gap-2">
           <ThemeToggle />
           {userEmail && (
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleSignOut}
-              title="Sign out"
-              className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               aria-label="Sign out"
+              title="Sign out"
+              className="size-8 rounded-full"
             >
-              <LogOut className="size-3.5" strokeWidth={1.5} />
-            </button>
+              <LogOut className="size-4" />
+            </Button>
           )}
         </div>
       </div>

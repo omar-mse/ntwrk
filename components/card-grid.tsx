@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion"
-import { ContactCard as ContactCardType } from "@/lib/types"
+import { ContactCard as ContactCardType, CustomCategory } from "@/lib/types"
 import { ContactCard } from "./contact-card"
 import { CardDetail } from "./card-detail"
 import { CardPreview } from "./card-preview"
@@ -12,15 +12,18 @@ import { spring } from "@/lib/motion"
 interface CardGridProps {
   cards: ContactCardType[]
   notes: Record<string, string>
+  customCategories: CustomCategory[]
+  onCustomCategoriesChange: (cats: CustomCategory[]) => void
   onUpload: (card: ContactCardType) => void
   onNotesChange: (id: string, value: string) => void
   onDelete: (id: string) => void
-  onCategoryChange: (id: string, category: string, accent: string) => void
+  onTagsChange: (id: string, tags: CustomCategory[]) => void
 }
 
-export function CardGrid({ cards, notes, onUpload, onNotesChange, onDelete, onCategoryChange }: CardGridProps) {
+export function CardGrid({ cards, notes, customCategories, onCustomCategoriesChange, onUpload, onNotesChange, onDelete, onTagsChange }: CardGridProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [previewCard, setPreviewCard] = useState<ContactCardType | null>(null)
+  const [savingPreview, setSavingPreview] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const selectedCard = selectedId ? cards.find((c) => c.id === selectedId) ?? null : null
 
@@ -39,9 +42,23 @@ export function CardGrid({ cards, notes, onUpload, onNotesChange, onDelete, onCa
     }
   }, [cards, deletingId])
 
-  function handlePreviewConfirm(card: ContactCardType) {
-    setPreviewCard(null)
-    onUpload(card)
+  async function handlePreviewConfirm(card: ContactCardType) {
+    setSavingPreview(true)
+    try {
+      const response = await fetch("/api/cards", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(card),
+      })
+      if (!response.ok) throw new Error("Failed to save")
+      const saved: ContactCardType = await response.json()
+      setPreviewCard(null)
+      onUpload(saved)
+    } catch (err) {
+      console.error("Failed to save card:", err)
+    } finally {
+      setSavingPreview(false)
+    }
   }
 
   return (
@@ -91,7 +108,6 @@ export function CardGrid({ cards, notes, onUpload, onNotesChange, onDelete, onCa
               role="button"
               aria-label={`View ${card.name} at ${card.company}`}
               onKeyDown={(e) => e.key === "Enter" && !isDeleting && setSelectedId(card.id)}
-              whileHover={isDeleting ? {} : { y: -3, transition: { duration: 0.2 } }}
               style={{ willChange: "transform" }}
             >
               <ContactCard card={card} />
@@ -133,6 +149,7 @@ export function CardGrid({ cards, notes, onUpload, onNotesChange, onDelete, onCa
                   card={previewCard}
                   onConfirm={handlePreviewConfirm}
                   onCancel={() => setPreviewCard(null)}
+                  saving={savingPreview}
                 />
               </motion.div>
             </div>
@@ -172,10 +189,12 @@ export function CardGrid({ cards, notes, onUpload, onNotesChange, onDelete, onCa
                 <CardDetail
                   card={selectedCard}
                   notes={notes[selectedCard.id] ?? selectedCard.userNotes}
+                  customCategories={customCategories}
+                  onCustomCategoriesChange={onCustomCategoriesChange}
                   onNotesChange={(val) => onNotesChange(selectedCard.id, val)}
                   onClose={handleClose}
                   onDelete={() => handleDelete(selectedCard.id)}
-                  onCategoryChange={(cat, accent) => onCategoryChange(selectedCard.id, cat, accent)}
+                  onTagsChange={(tags) => onTagsChange(selectedCard.id, tags)}
                 />
               </motion.div>
             </div>

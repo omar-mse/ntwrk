@@ -1,31 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
 import { GoogleGenerativeAI } from "@google/generative-ai"
 import { createClient } from "@/lib/supabase/server"
-import { rowToCard } from "@/lib/supabase/cards"
-import type { Category } from "@/lib/types"
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
-const PROMPT = `You are an expert OCR and business analyst. Examine this business card image and return ONLY a JSON object — no markdown, no code fences — with exactly these fields:
-{
-  "name": string,
-  "title": string,
-  "company": string,
-  "email": string,
-  "phone": string,
-  "website": string,
-  "category": "Tech" | "Design" | "Finance" | "Legal" | "Marketing" | "Other",
-  "aiDescription": string
-}
-The aiDescription should be 1–2 sentences summarising what the company likely does based on its name and branding.`
+const PALETTE = [
+  "#6366f1", "#8b5cf6", "#ec4899", "#ef4444",
+  "#f97316", "#f59e0b", "#84cc16", "#10b981",
+  "#06b6d4", "#3b82f6", "#64748b", "#a16207",
+]
 
-const CATEGORY_ACCENTS: Record<string, string> = {
-  Tech: "#3b82f6",
-  Design: "#f59e0b",
-  Finance: "#10b981",
-  Legal: "#8b5cf6",
-  Marketing: "#ec4899",
-  Other: "#64748b",
+function pickColor(name: string): string {
+  let hash = 0
+  for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) | 0
+  return PALETTE[Math.abs(hash) % PALETTE.length]
 }
 
 export async function POST(request: NextRequest) {
@@ -35,10 +23,34 @@ export async function POST(request: NextRequest) {
 
   const formData = await request.formData()
   const file = formData.get("file") as File | null
+  if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 })
 
-  if (!file) {
-    return NextResponse.json({ error: "No file provided" }, { status: 400 })
-  }
+  // Fetch user's existing categories so the AI can reuse them
+  const { data: existingCats } = await supabase
+    .from("user_categories")
+    .select("name, accent")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: true })
+
+  const userCats = existingCats ?? []
+
+  const categoryInstruction = userCats.length > 0
+    ? `Choose the most relevant category from the user's existing tags: ${userCats.map((c) => c.name).join(", ")}. If none of these fit, suggest a concise new category name (1–2 words, title case).`
+    : `Suggest a concise category for this contact (e.g. Tech, Design, Finance, Legal, Marketing, or something more specific). 1–2 words, title case.`
+
+  const prompt = `You are an expert OCR and business analyst. Examine this business card image and return ONLY a JSON object — no markdown, no code fences — with exactly these fields:
+{
+  "name": string,
+  "title": string,
+  "company": string,
+  "email": string,
+  "phone": string,
+  "website": string,
+  "category": string,
+  "aiDescription": string
+}
+For the "category" field: ${categoryInstruction}
+The aiDescription should be 1–2 sentences summarising what the company likely does based on its name and branding.`
 
   const bytes = await file.arrayBuffer()
   const buffer = Buffer.from(bytes)
@@ -47,7 +59,7 @@ export async function POST(request: NextRequest) {
   let result
   try {
     result = await model.generateContent([
-      PROMPT,
+      prompt,
       {
         inlineData: {
           data: buffer.toString("base64"),
@@ -65,14 +77,9 @@ export async function POST(request: NextRequest) {
   const cleaned = text.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim()
 
   let parsed: {
-    name: string
-    title: string
-    company: string
-    email: string
-    phone: string
-    website: string
-    category: string
-    aiDescription: string
+    name: string; title: string; company: string
+    email: string; phone: string; website: string
+    category: string; aiDescription: string
   }
 
   try {
@@ -82,30 +89,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to parse AI response", raw: text }, { status: 500 })
   }
 
-  const category = (parsed.category in CATEGORY_ACCENTS ? parsed.category : "Other") as Category
+  const rawCategory = (parsed.category || "Other").trim()
 
-  const { data: row, error } = await supabase
-    .from("cards")
-    .insert({
-      user_id: user.id,
-      name: parsed.name || "Unknown",
-      title: parsed.title || "",
-      company: parsed.company || "",
-      email: parsed.email || "",
-      phone: parsed.phone || "",
-      website: parsed.website || "",
-      category,
-      ai_description: parsed.aiDescription || "",
-      user_notes: "",
-      accent: CATEGORY_ACCENTS[category],
-    })
-    .select()
-    .single()
+  // If the AI picked an existing category (case-insensitive), use its exact name + stored accent.
+  // Otherwise it's a new tag — assign a deterministic color from the palette.
+  const existing = userCats.find((c) => c.name.toLowerCase() === rawCategory.toLowerCase())
+  const tagName  = existing?.name  ?? rawCategory
+  const accent   = existing?.accent ?? pickColor(rawCategory)
 
-  if (error) {
-    console.error("[analyze-card] DB insert error:", error.message)
-    return NextResponse.json({ error: "Failed to save card", detail: error.message }, { status: 500 })
-  }
-
-  return NextResponse.json(rowToCard(row))
+  return NextResponse.json({
+    id: "",
+    name: parsed.name || "Unknown",
+    title: parsed.title || "",
+    company: parsed.company || "",
+    email: parsed.email || "",
+    phone: parsed.phone || "",
+    website: parsed.website || "",
+    tags: [{ name: tagName, accent }],
+    aiDescription: parsed.aiDescription || "",
+    userNotes: "",
+    capturedAt: "",
+  })
 }

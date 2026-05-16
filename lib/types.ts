@@ -1,5 +1,10 @@
 export type Category = string
 
+export interface CustomCategory {
+  name: string
+  accent: string
+}
+
 export interface ContactCard {
   id: string
   name: string
@@ -8,9 +13,8 @@ export interface ContactCard {
   email: string
   phone: string
   website: string
-  category: Category
+  tags: CustomCategory[]
   aiDescription: string
   userNotes: string
   capturedAt: string
-  accent?: string
 }

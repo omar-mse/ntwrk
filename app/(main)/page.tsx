@@ -8,10 +8,15 @@ export default async function HomePage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const { data } = await supabase
-    .from("cards")
-    .select("*")
-    .order("captured_at", { ascending: false })
+  const [{ data: cards }, { data: categories }] = await Promise.all([
+    supabase.from("cards").select("*").order("captured_at", { ascending: false }),
+    supabase.from("user_categories").select("name, accent").order("created_at", { ascending: true }),
+  ])
 
-  return <DashboardView initialCards={(data ?? []).map(rowToCard)} />
+  return (
+    <DashboardView
+      initialCards={(cards ?? []).map(rowToCard)}
+      initialCustomCategories={categories ?? []}
+    />
+  )
 }

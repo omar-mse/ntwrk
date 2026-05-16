@@ -1,16 +1,18 @@
 "use client"
 
 import { useState, useMemo, useCallback, useRef } from "react"
-import type { ContactCard } from "@/lib/types"
+import type { ContactCard, CustomCategory } from "@/lib/types"
 import { CardGrid } from "./card-grid"
 import { useSearch } from "./search-provider"
 
 interface DashboardViewProps {
   initialCards: ContactCard[]
+  initialCustomCategories: CustomCategory[]
 }
 
-export function DashboardView({ initialCards }: DashboardViewProps) {
+export function DashboardView({ initialCards, initialCustomCategories }: DashboardViewProps) {
   const [cards, setCards] = useState<ContactCard[]>(initialCards)
+  const [customCategories, setCustomCategories] = useState<CustomCategory[]>(initialCustomCategories)
   const [notes, setNotes] = useState<Record<string, string>>(
     Object.fromEntries(initialCards.map((c) => [c.id, c.userNotes]))
   )
@@ -22,7 +24,8 @@ export function DashboardView({ initialCards }: DashboardViewProps) {
     const q = query.trim().toLowerCase()
     if (!q) return cards
     return cards.filter((c) =>
-      [c.name, c.title, c.company, c.email, c.phone, c.website, c.category, c.aiDescription, notes[c.id] ?? ""]
+      [c.name, c.title, c.company, c.email, c.phone, c.website, c.aiDescription, notes[c.id] ?? "",
+       ...c.tags.map((t) => t.name)]
         .some((field) => field.toLowerCase().includes(q))
     )
   }, [query, cards, notes])
@@ -30,6 +33,11 @@ export function DashboardView({ initialCards }: DashboardViewProps) {
   function handleUpload(newCard: ContactCard) {
     setCards((prev) => [newCard, ...prev])
     setNotes((prev) => ({ ...prev, [newCard.id]: "" }))
+    setCustomCategories((prev) => {
+      const existing = new Set(prev.map((c) => c.name))
+      const fresh = newCard.tags.filter((t) => !existing.has(t.name))
+      return fresh.length > 0 ? [...prev, ...fresh] : prev
+    })
   }
 
   const handleNotesChange = useCallback((id: string, value: string) => {
@@ -54,12 +62,12 @@ export function DashboardView({ initialCards }: DashboardViewProps) {
     fetch(`/api/cards/${id}`, { method: "DELETE" }).catch(console.error)
   }
 
-  function handleCategoryChange(id: string, category: string, accent: string) {
-    setCards((prev) => prev.map((c) => (c.id === id ? { ...c, category, accent } : c)))
+  function handleTagsChange(id: string, tags: CustomCategory[]) {
+    setCards((prev) => prev.map((c) => (c.id === id ? { ...c, tags } : c)))
     fetch(`/api/cards/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ category, accent }),
+      body: JSON.stringify({ tags }),
     }).catch(console.error)
   }
 
@@ -88,10 +96,12 @@ export function DashboardView({ initialCards }: DashboardViewProps) {
       <CardGrid
         cards={filteredCards}
         notes={notes}
+        customCategories={customCategories}
+        onCustomCategoriesChange={setCustomCategories}
         onUpload={handleUpload}
         onNotesChange={handleNotesChange}
         onDelete={handleDelete}
-        onCategoryChange={(id, cat, accent) => handleCategoryChange(id, cat, accent)}
+        onTagsChange={handleTagsChange}
       />
     </main>
   )

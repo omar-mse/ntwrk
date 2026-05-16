@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { Geist, Geist_Mono, Instrument_Serif, Cormorant_Garamond } from "next/font/google"
+import { Geist, Geist_Mono, Instrument_Serif, Playfair_Display } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { SearchProvider } from "@/components/search-provider"
@@ -22,10 +22,10 @@ const instrumentSerif = Instrument_Serif({
   style: ["normal", "italic"],
 })
 
-const cormorant = Cormorant_Garamond({
-  variable: "--font-cormorant",
+const playfairDisplay = Playfair_Display({
+  variable: "--font-playfair",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700"],
   style: ["normal", "italic"],
 })
 
@@ -43,7 +43,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} ${cormorant.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} ${playfairDisplay.variable} h-full antialiased`}
     >
       <head>
         {/* Inline FOUC-prevention: runs before React hydrates, sets .dark on <html> */}
