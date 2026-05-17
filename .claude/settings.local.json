@@ -28,7 +28,11 @@
       "Bash(pnpm install *)",
       "Skill(my-frontend-design)",
       "Bash(pnpm exec *)",
-      "PowerShell(Stop-Process *)"
+      "PowerShell(Stop-Process *)",
+      "mcp__claude_ai_Supabase__list_tables",
+      "mcp__claude_ai_Supabase__get_logs",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "mcp__claude_ai_Supabase__list_projects"
     ]
   }
 }

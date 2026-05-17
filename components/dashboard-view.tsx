@@ -75,8 +75,7 @@ export function DashboardView({ initialCards, initialCustomCategories }: Dashboa
     <main className="mx-auto w-full max-w-screen-2xl px-4 py-8 sm:px-8 lg:px-12 xl:px-16">
       <div className="mb-8">
         <h1
-          className="font-display text-3xl italic tracking-tight text-foreground sm:text-4xl"
-          style={{ fontFamily: "var(--font-instrument-serif), Georgia, serif" }}
+          className="font-display text-3xl font-medium tracking-tight text-foreground sm:text-4xl"
         >
           Your Cards
         </h1>

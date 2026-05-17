@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { Geist, Geist_Mono, Instrument_Serif, Playfair_Display } from "next/font/google"
+import { Geist, Geist_Mono, Newsreader, Playfair_Display } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { SearchProvider } from "@/components/search-provider"
@@ -15,10 +15,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 })
 
-const instrumentSerif = Instrument_Serif({
-  variable: "--font-instrument-serif",
+const newsreader = Newsreader({
+  variable: "--font-newsreader",
   subsets: ["latin"],
-  weight: "400",
+  weight: ["400", "500", "600", "700"],
   style: ["normal", "italic"],
 })
 
@@ -43,7 +43,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} ${playfairDisplay.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${newsreader.variable} ${playfairDisplay.variable} h-full antialiased`}
     >
       <head>
         {/* Inline FOUC-prevention: runs before React hydrates, sets .dark on <html> */}

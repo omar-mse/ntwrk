@@ -34,7 +34,7 @@ Next.js 16 App Router + React 19. `app/` holds only server components (`layout.t
 
 **Spring constants** are centralised in `lib/motion.ts` (`spring`, `springSnappy`, `springGentle`). Use these rather than inline transition objects.
 
-**Fonts**: Geist Sans (`--font-geist-sans`) for body, Instrument Serif (`--font-instrument-serif`) for non-italic display headings, Playfair Display (`--font-playfair`) for all italic text. Apply display font via the `.font-display` utility class (defined in `globals.css`). Any element with the Tailwind `italic` class automatically gets Playfair Display via the `.italic { font-family: var(--font-playfair) }` rule at the bottom of `globals.css` — this overrides `.font-display` when both classes are present. Do not add `--font-playfair` to the `@theme inline {}` block (it would create a circular self-reference); the variable is injected by Next.js directly onto `<html>`.
+**Fonts**: Geist Sans (`--font-geist-sans`) for body, Fraunces (`--font-fraunces`) for display headings (`.font-display`, weight 500), Playfair Display (`--font-playfair`) for secondary display text (`.font-playfair`). Both utility classes are defined in `globals.css`. Do not add font variables to the `@theme inline {}` block — it creates a circular self-reference; variables are injected by Next.js directly onto `<html>`.
 
 ## Data shape
 

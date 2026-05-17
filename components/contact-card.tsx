@@ -171,8 +171,7 @@ export function ContactCard({ card, className }: ContactCardProps) {
 
         {/* Company */}
         <p
-          className="mb-2 font-display text-2xl font-normal italic leading-tight tracking-wide text-foreground"
-          style={{ fontFamily: "var(--font-instrument-serif), Georgia, serif" }}
+          className="mb-2 font-display text-2xl font-medium leading-tight tracking-wide text-foreground"
         >
           {card.company}
         </p>

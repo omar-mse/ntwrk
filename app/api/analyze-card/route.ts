@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
   const categoryInstruction = userCats.length > 0
     ? `Choose the most relevant category from the user's existing tags: ${userCats.map((c) => c.name).join(", ")}. If none of these fit, suggest a concise new category name (1–2 words, title case).`
-    : `Suggest a concise category for this contact (e.g. Tech, Design, Finance, Legal, Marketing, or something more specific). 1–2 words, title case.`
+    : `Pick the single best matching category from this list: Tech, Design, Finance, Marketing, Legal, Healthcare, Real Estate, Education, Consulting, Sales, Media, Hospitality, Manufacturing, Retail, Other. Only invent a new 1–2 word title-case label if none of these fit.`
 
   const prompt = `You are an expert OCR and business analyst. Examine this business card image and return ONLY a JSON object — no markdown, no code fences — with exactly these fields:
 {
@@ -103,7 +103,7 @@ The aiDescription should be 1–2 sentences summarising what the company likely 
     title: parsed.title || "",
     company: parsed.company || "",
     email: parsed.email || "",
-    phone: parsed.phone || "",
+    phone: (parsed.phone || "").split(/[,\/\n|;]/)[0].trim(),
     website: parsed.website || "",
     tags: [{ name: tagName, accent }],
     aiDescription: parsed.aiDescription || "",

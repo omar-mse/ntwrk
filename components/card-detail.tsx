@@ -278,7 +278,7 @@ export function CardDetail({ card, notes, customCategories, onCustomCategoriesCh
               </button>
 
               {categoryOpen && (
-                <div className="absolute left-0 top-full mt-1.5 z-20 min-w-[160px] rounded-2xl bg-white dark:bg-slate-800 p-1.5 shadow-xl ring-1 ring-slate-200/80 dark:ring-slate-700/50">
+                <div className="absolute left-0 top-full mt-1.5 z-20 min-w-[160px] max-h-64 overflow-y-auto rounded-2xl bg-white dark:bg-slate-800 p-1.5 shadow-xl ring-1 ring-slate-200/80 dark:ring-slate-700/50 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {!creatingTag ? (
                     <>
                       {/* Preset list (excluding Other) */}
@@ -351,6 +351,18 @@ export function CardDetail({ card, notes, customCategories, onCustomCategoriesCh
                         </div>
                       )}
                       <div className="my-1 h-px bg-border/60" />
+                      {/* Show all hidden presets */}
+                      {hiddenPresets.length > 0 && (
+                        <button
+                          onClick={() => {
+                            setHiddenPresets([])
+                            localStorage.removeItem("ntwrk:hidden-presets")
+                          }}
+                          className="flex w-full items-center gap-1.5 rounded-xl px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                        >
+                          Show all presets
+                        </button>
+                      )}
                       {/* New tag button */}
                       <button
                         onClick={() => setCreatingTag(true)}
@@ -425,8 +437,7 @@ export function CardDetail({ card, notes, customCategories, onCustomCategoriesCh
           </div>
 
           <h2
-            className="font-display text-3xl leading-tight tracking-wide text-foreground"
-            style={{ fontFamily: "var(--font-instrument-serif), Georgia, serif" }}
+            className="font-display text-3xl font-medium leading-tight tracking-wide text-foreground"
           >
             {card.company}
           </h2>
