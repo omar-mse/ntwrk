@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { GoogleGenerativeAI } from "@google/generative-ai"
-import { createClient } from "@/lib/supabase/server"
+import { auth } from "@/auth"
+import { listCategories } from "@/lib/db/categories"
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
@@ -17,22 +18,14 @@ function pickColor(name: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const session = await auth()
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const formData = await request.formData()
   const file = formData.get("file") as File | null
   if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 })
 
-  // Fetch user's existing categories so the AI can reuse them
-  const { data: existingCats } = await supabase
-    .from("user_categories")
-    .select("name, accent")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: true })
-
-  const userCats = existingCats ?? []
+  const userCats = await listCategories(session.user.id)
 
   const categoryInstruction = userCats.length > 0
     ? `Choose the most relevant category from the user's existing tags: ${userCats.map((c) => c.name).join(", ")}. If none of these fit, suggest a concise new category name (1–2 words, title case).`

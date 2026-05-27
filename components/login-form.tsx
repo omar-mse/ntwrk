@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { AnimatePresence, motion } from "framer-motion"
-import { createClient } from "@/lib/supabase/client"
+import { signIn } from "next-auth/react"
 
 const GoogleIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -16,36 +16,46 @@ const GoogleIcon = () => (
 
 export function LoginForm() {
   const router = useRouter()
-  const supabase = createClient()
 
   const [mode, setMode] = useState<"signin" | "signup">("signin")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
-    setMessage(null)
     setLoading(true)
 
     if (mode === "signin") {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) {
-        setError(error.message)
+      const result = await signIn("credentials", { email, password, redirect: false })
+      if (result?.error) {
+        setError("Invalid email or password.")
       } else {
         router.push("/")
         router.refresh()
       }
     } else {
-      const { error } = await supabase.auth.signUp({ email, password })
-      if (error) {
-        setError(error.message)
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      })
+      if (res.status === 409) {
+        setError("An account with that email already exists.")
+      } else if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setError(body.error ?? "Could not create account.")
       } else {
-        setMessage("Check your email for a confirmation link.")
+        const result = await signIn("credentials", { email, password, redirect: false })
+        if (result?.error) {
+          setError("Account created — please sign in.")
+        } else {
+          router.push("/")
+          router.refresh()
+        }
       }
     }
 
@@ -54,11 +64,7 @@ export function LoginForm() {
 
   async function handleGoogle() {
     setGoogleLoading(true)
-    const origin = window.location.origin
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${origin}/auth/callback` },
-    })
+    await signIn("google", { callbackUrl: "/" })
   }
 
   return (
@@ -112,17 +118,6 @@ export function LoginForm() {
               {error}
             </motion.p>
           )}
-          {message && (
-            <motion.p
-              key="message"
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="text-xs text-muted-foreground"
-            >
-              {message}
-            </motion.p>
-          )}
         </AnimatePresence>
 
         <button
@@ -139,7 +134,7 @@ export function LoginForm() {
           <>
             No account?{" "}
             <button
-              onClick={() => { setMode("signup"); setError(null); setMessage(null) }}
+              onClick={() => { setMode("signup"); setError(null) }}
               className="text-foreground underline-offset-2 hover:underline"
             >
               Create one
@@ -149,7 +144,7 @@ export function LoginForm() {
           <>
             Already have an account?{" "}
             <button
-              onClick={() => { setMode("signin"); setError(null); setMessage(null) }}
+              onClick={() => { setMode("signin"); setError(null) }}
               className="text-foreground underline-offset-2 hover:underline"
             >
               Sign in

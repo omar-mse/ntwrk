@@ -1,13 +1,12 @@
-import { createClient } from "@/lib/supabase/server"
+import { auth } from "@/auth"
 import { SiteHeader } from "@/components/site-header"
 
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const session = await auth()
 
   return (
     <div className="flex min-h-screen flex-col">
-      <SiteHeader userEmail={user?.email} />
+      <SiteHeader userEmail={session?.user?.email ?? undefined} />
       {children}
     </div>
   )

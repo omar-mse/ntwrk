@@ -1,22 +1,22 @@
 import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
-import { rowToCard } from "@/lib/supabase/cards"
+import { auth } from "@/auth"
+import { listCards } from "@/lib/db/cards"
+import { listCategories } from "@/lib/db/categories"
 import { DashboardView } from "@/components/dashboard-view"
 
 export default async function HomePage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect("/login")
+  const session = await auth()
+  if (!session?.user?.id) redirect("/login")
 
-  const [{ data: cards }, { data: categories }] = await Promise.all([
-    supabase.from("cards").select("*").order("captured_at", { ascending: false }),
-    supabase.from("user_categories").select("name, accent").order("created_at", { ascending: true }),
+  const [cards, categories] = await Promise.all([
+    listCards(session.user.id),
+    listCategories(session.user.id),
   ])
 
   return (
     <DashboardView
-      initialCards={(cards ?? []).map(rowToCard)}
-      initialCustomCategories={categories ?? []}
+      initialCards={cards}
+      initialCustomCategories={categories}
     />
   )
 }

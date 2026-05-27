@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { Geist, Geist_Mono, Newsreader, Playfair_Display } from "next/font/google"
 import "./globals.css"
+import { SessionProvider } from "next-auth/react"
 import { ThemeProvider } from "@/components/theme-provider"
 import { SearchProvider } from "@/components/search-provider"
 
@@ -54,11 +55,13 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full bg-background text-foreground">
-        <ThemeProvider>
-          <SearchProvider>
-            {children}
-          </SearchProvider>
-        </ThemeProvider>
+        <SessionProvider>
+          <ThemeProvider>
+            <SearchProvider>
+              {children}
+            </SearchProvider>
+          </ThemeProvider>
+        </SessionProvider>
       </body>
     </html>
   )

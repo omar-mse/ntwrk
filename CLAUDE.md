@@ -8,17 +8,36 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 pnpm dev          # start dev server (localhost:3000)
 pnpm build        # production build
 pnpm lint         # eslint
+pnpm exec prisma migrate dev --name <name>   # create + apply a new migration
+pnpm exec prisma generate                     # regenerate Prisma client after schema changes
+pnpm exec prisma studio                       # browse the local SQLite DB
 ```
 
-**Always pass `--ignore-scripts` when installing packages** — pnpm 11 blocks build scripts by default. The `package.json` `pnpm.onlyBuiltDependencies` allowlist (`sharp`, `unrs-resolver`, `msw`) handles the exceptions, but new packages still need the flag:
+## Environment variables
+
+Create a `.env.local` with:
+
+```
+DATABASE_URL="file:./dev.db"
+AUTH_SECRET="<openssl rand -base64 33>"
+AUTH_GOOGLE_ID="<google oauth client id>"
+AUTH_GOOGLE_SECRET="<google oauth client secret>"
+GEMINI_API_KEY="<gemini api key>"
+```
+
+**Google Cloud Console:** set the authorized redirect URI to `http://localhost:3000/api/auth/callback/google` (and your production equivalent).
+
+**Always pass `--ignore-scripts` when installing packages** — pnpm 11 blocks build scripts by default. The `package.json` `pnpm.onlyBuiltDependencies` allowlist (`@prisma/client`, `prisma`, `sharp`, `unrs-resolver`, `msw`) handles the exceptions, but new packages still need the flag:
 
 ```bash
 pnpm add <pkg> --ignore-scripts
 ```
 
+After installing or updating Prisma, run `pnpm exec prisma generate` manually (postinstall is suppressed by `--ignore-scripts`).
+
 ## Architecture
 
-Next.js 16 App Router + React 19. `app/` holds only server components (`layout.tsx`, `page.tsx`). Everything interactive lives in `components/` and is client-only (`"use client"`).
+Next.js 16 App Router + React 19. `app/` holds only server components (`layout.tsx`, `(main)/page.tsx`). Everything interactive lives in `components/` and is client-only (`"use client"`).
 
 **Tailwind v4** uses a CSS-first config — there is no `tailwind.config.ts`. All theme tokens live in `app/globals.css` inside `@theme inline { }`. Color values are oklch. Adding new design tokens goes there, not in a config file.
 
@@ -36,21 +55,71 @@ Next.js 16 App Router + React 19. `app/` holds only server components (`layout.t
 
 **Fonts**: Geist Sans (`--font-geist-sans`) for body, Fraunces (`--font-fraunces`) for display headings (`.font-display`, weight 500), Playfair Display (`--font-playfair`) for secondary display text (`.font-playfair`). Both utility classes are defined in `globals.css`. Do not add font variables to the `@theme inline {}` block — it creates a circular self-reference; variables are injected by Next.js directly onto `<html>`.
 
-## Data shape
+## Data shape & state
 
-`lib/types.ts` defines `ContactCard`. `DashboardView` owns all mutable state (cards array + notes record); child components receive data and callbacks as props. Mutations call the REST API (`/api/cards/[id]`) which in turn hits Supabase; notes changes are debounced 600 ms.
+`lib/types.ts` defines `ContactCard` (fields: `id`, `name`, `title`, `company`, `email`, `phone`, `website`, `tags: CustomCategory[]`, `aiDescription`, `userNotes`, `capturedAt`). `DashboardView` owns all mutable state (cards array + notes record); child components receive data and callbacks as props. Mutations call the REST API which in turn hits Prisma; notes changes are debounced 600 ms.
 
-## Supabase / Auth
+**Search** state lives in `SearchProvider` (context in `components/search-provider.tsx`). Import `useSearch` from there to read/set the global query. Filtering happens inside `DashboardView` via `useMemo` — no server round-trip.
 
-Schema lives in `supabase/migrations/0001_init.sql` — run via the Supabase dashboard SQL editor or `supabase db push`.
+## AI card scan flow
 
-**Client factories** in `lib/supabase/`:
-- `server.ts` — cookie-based server client (`@supabase/ssr`); use in Server Components and Route Handlers
-- `client.ts` — browser client; use in `"use client"` components
-- `middleware.ts` — `updateSession()` called by `middleware.ts` at the root to refresh tokens on every request
+Card ingestion is two steps:
 
-**Auth flow**: `app/login/page.tsx` renders `components/login-form.tsx` (email+password + Google OAuth). OAuth callback is handled by `app/auth/callback/route.ts`. Sign-out is in `components/site-header.tsx`.
+1. **`POST /api/analyze-card`** — accepts a `multipart/form-data` file, runs Gemini 2.5 Flash OCR, and returns a `ContactCard`-shaped JSON. Nothing is written to the DB yet.
+2. **`POST /api/cards`** — saves the confirmed card to Prisma and upserts any new tags into `UserCategory`.
 
-**RLS**: The `cards` table has row-level security enabled. All four policies (`SELECT`, `INSERT`, `UPDATE`, `DELETE`) gate on `auth.uid() = user_id`. The Supabase server client in route handlers inherits the user's session from cookies — RLS is enforced automatically.
+The AI is instructed to reuse the user's existing category names when possible (fetched from `UserCategory` before the Gemini call). Category accent colours are assigned deterministically via a hash palette in `analyze-card/route.ts`.
 
-**Row mapping**: `lib/supabase/cards.ts` exports `rowToCard()` which translates snake_case DB columns to camelCase `ContactCard`. Use it wherever DB rows are converted for the UI.
+## API routes
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `POST` | `/api/analyze-card` | OCR + AI analysis (no DB write) |
+| `POST` | `/api/cards` | Save card, upsert categories |
+| `PATCH` | `/api/cards/[id]` | Update `userNotes` or `tags` |
+| `DELETE` | `/api/cards/[id]` | Delete card |
+| `GET` | `/api/categories` | List user's categories |
+| `POST` | `/api/categories` | Upsert a category |
+| `DELETE` | `/api/categories/[name]` | Remove a user category |
+| `POST` | `/api/auth/register` | Create account (email + password) |
+
+## Auth (Auth.js v5 / NextAuth)
+
+**Stack:** Auth.js v5 (`next-auth@beta`) with Prisma adapter, JWT session strategy.
+
+**Why JWT:** The Credentials provider is incompatible with database sessions — `session: { strategy: "jwt" }` is required. Google OAuth also works under JWT.
+
+**Split config:**
+- `auth.config.ts` — edge-safe partial (providers list, pages, `authorized` callback). Used by middleware; no Prisma/bcrypt imports.
+- `auth.ts` — full config with `PrismaAdapter`, `Credentials` provider (bcrypt password check), and JWT/session callbacks. Used in server components and API routes.
+
+**Session access:**
+- Server components / Route Handlers: `const session = await auth()` from `@/auth`; `session.user.id` has the userId (typed via `types/next-auth.d.ts`).
+- Client components: `useSession()` from `next-auth/react`; sign-in/out via `signIn`/`signOut`.
+
+**Sign-up flow:** Credentials provider does NOT create users. POST `/api/auth/register` (bcrypt hash + `prisma.user.create`), then auto-`signIn("credentials", ...)`. No email confirmation — sign-up logs in immediately.
+
+**Google OAuth** callback is handled automatically at `/api/auth/callback/google` by Auth.js. No custom callback route needed.
+
+## Database (Prisma + SQLite)
+
+Schema: `prisma/schema.prisma` — models: `User`, `Account`, `Session`, `VerificationToken` (Auth.js adapter), `Card`, `UserCategory`.
+
+**`tags` is stored as `String` (JSON-encoded `CustomCategory[]`)** — SQLite has no JSON column type. The DB layer (`lib/db/cards.ts`) handles `JSON.parse`/`stringify`; app code always sees `CustomCategory[]`.
+
+**No RLS** — SQLite/SQL Server have no row-level security. Every query in `lib/db/` explicitly filters by `userId`. Update/delete use `updateMany`/`deleteMany({ where: { id, userId } })` and return 404 if count is 0 (ownership check).
+
+**Client singleton:** `lib/prisma.ts` — standard dev hot-reload guard (`globalThis.prisma`).
+
+**DB layer:**
+- `lib/db/cards.ts` — `listCards`, `createCard`, `updateCard`, `deleteCard`, `rowToCard` (maps Prisma `Card` → `ContactCard`).
+- `lib/db/categories.ts` — `listCategories`, `upsertCategory`, `upsertCategoriesIgnoreDuplicates`, `deleteCategory`.
+
+## Switching to SQL Server later
+
+All dialect-specific config is in `schema.prisma` and `DATABASE_URL`. To switch:
+1. Change `provider = "sqlite"` → `"sqlserver"` in `schema.prisma`.
+2. Set `DATABASE_URL` to the SQL Server connection string.
+3. Re-run `prisma migrate dev` (fresh schema; no data migration needed).
+
+`tags String` maps to `NVARCHAR(MAX)` on SQL Server — no code changes needed. `@default(uuid())` is app-generated (provider-agnostic).
