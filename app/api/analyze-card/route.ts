@@ -2,19 +2,26 @@ import { NextRequest, NextResponse } from "next/server"
 import { GoogleGenerativeAI } from "@google/generative-ai"
 import { auth } from "@/auth"
 import { listCategories } from "@/lib/db/categories"
+import { categoryAccentColor } from "@/components/category-badge"
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
+// Distinct from the preset category colours in `categoryAccentColor` so a custom
+// tag can never share a hue with a preset (e.g. Healthcare's red).
 const PALETTE = [
-  "#6366f1", "#8b5cf6", "#ec4899", "#ef4444",
-  "#f97316", "#f59e0b", "#84cc16", "#10b981",
-  "#06b6d4", "#3b82f6", "#64748b", "#a16207",
+  "#3b82f6", "#06b6d4", "#8b5cf6", "#f43f5e",
+  "#22c55e", "#a16207", "#0891b2", "#2563eb",
+  "#7e22ce", "#be185d", "#c2410c", "#15803d",
 ]
 
-function pickColor(name: string): string {
+// Pick a palette colour the user isn't already using; fall back to a hash slot
+// once every colour is taken.
+function pickColor(name: string, used: Set<string> = new Set()): string {
+  const available = PALETTE.filter((c) => !used.has(c.toLowerCase()))
+  const pool = available.length > 0 ? available : PALETTE
   let hash = 0
   for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) | 0
-  return PALETTE[Math.abs(hash) % PALETTE.length]
+  return pool[Math.abs(hash) % pool.length]
 }
 
 export async function POST(request: NextRequest) {
@@ -88,7 +95,11 @@ The aiDescription should be 1–2 sentences summarising what the company likely 
   // Otherwise it's a new tag — assign a deterministic color from the palette.
   const existing = userCats.find((c) => c.name.toLowerCase() === rawCategory.toLowerCase())
   const tagName  = existing?.name  ?? rawCategory
-  const accent   = existing?.accent ?? pickColor(rawCategory)
+  const usedColors = new Set<string>([
+    ...userCats.map((c) => c.accent.toLowerCase()),
+    ...Object.values(categoryAccentColor).map((c) => c.toLowerCase()),
+  ])
+  const accent   = existing?.accent ?? pickColor(rawCategory, usedColors)
 
   return NextResponse.json({
     id: "",

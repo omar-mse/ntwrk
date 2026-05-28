@@ -35,7 +35,8 @@
       "mcp__claude_ai_Supabase__list_projects",
       "Bash(grep -aE '[A-Za-z]{3,}')",
       "Bash(grep -aA20 'CREATE TABLE \"BusinessCard\"')",
-      "PowerShell($bytes = New-Object byte[] 33; [System.Security.Cryptography.RandomNumberGenerator]::Create\\(\\).GetBytes\\($bytes\\); [Convert]::ToBase64String\\($bytes\\))"
+      "PowerShell($bytes = New-Object byte[] 33; [System.Security.Cryptography.RandomNumberGenerator]::Create\\(\\).GetBytes\\($bytes\\); [Convert]::ToBase64String\\($bytes\\))",
+      "PowerShell(git *)"
     ]
   }
 }
