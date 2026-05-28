@@ -171,7 +171,7 @@ export function ContactCard({ card, className }: ContactCardProps) {
 
         {/* Company */}
         <p
-          className="mb-2 font-display text-2xl font-medium leading-tight tracking-wide text-foreground"
+          className="mb-2 font-display text-2xl font-light leading-tight tracking-tight text-foreground"
         >
           {card.company}
         </p>

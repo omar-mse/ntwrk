@@ -437,7 +437,7 @@ export function CardDetail({ card, notes, customCategories, onCustomCategoriesCh
           </div>
 
           <h2
-            className="font-display text-3xl font-medium leading-tight tracking-wide text-foreground"
+            className="font-display text-3xl font-light leading-tight tracking-tight text-foreground"
           >
             {card.company}
           </h2>
