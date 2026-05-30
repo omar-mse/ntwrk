@@ -92,7 +92,7 @@ The AI is instructed to reuse the user's existing category names when possible (
 **Split config:**
 - `auth.config.ts` — edge-safe partial (providers list, pages, `authorized` callback). Used by the edge middleware; no Prisma/bcrypt imports.
 - `auth.ts` — full config with `PrismaAdapter`, `Credentials` provider (bcrypt password check), and JWT/session callbacks. Used in server components and API routes.
-- `proxy.ts` — Next.js 16's renamed `middleware.ts`. Wires `auth.config.ts` into the edge runtime via `NextAuth(authConfig).auth` and gates every non-static route through the `authorized` callback.
+- `middleware.ts` — Wires `auth.config.ts` into the edge runtime via `NextAuth(authConfig).auth` and gates every non-static route through the `authorized` callback.
 
 **Session access:**
 - Server components / Route Handlers: `const session = await auth()` from `@/auth`; `session.user.id` has the userId (typed via `types/next-auth.d.ts`).

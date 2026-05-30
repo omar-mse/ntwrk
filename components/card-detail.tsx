@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { Mail, Phone, Globe, X, Copy, Check, Trash2, Pencil, Plus } from "lucide-react"
+import { QRCodeSVG } from "qrcode.react"
 import { ContactCard, CustomCategory } from "@/lib/types"
 import {
   CategoryBadge,
@@ -33,6 +34,24 @@ const SWATCH_COLORS = [
   "#f97316", "#f59e0b", "#84cc16", "#10b981",
   "#06b6d4", "#3b82f6", "#64748b", "#a16207",
 ]
+
+function buildVCard(card: ContactCard): string {
+  const parts = card.name.trim().split(/\s+/)
+  const lastName  = parts.length > 1 ? parts[parts.length - 1] : ""
+  const firstName = parts.length > 1 ? parts.slice(0, -1).join(" ") : parts[0]
+  return [
+    "BEGIN:VCARD",
+    "VERSION:3.0",
+    `N:${lastName};${firstName};;;`,
+    `FN:${card.name}`,
+    card.company && `ORG:${card.company}`,
+    card.title   && `TITLE:${card.title}`,
+    card.email   && `EMAIL;TYPE=WORK:${card.email}`,
+    card.phone   && `TEL;TYPE=WORK:${card.phone}`,
+    card.website && `URL:${card.website}`,
+    "END:VCARD",
+  ].filter(Boolean).join("\r\n")
+}
 
 interface CardDetailProps {
   card: ContactCard
@@ -457,6 +476,20 @@ export function CardDetail({ card, notes, customCategories, onCustomCategoriesCh
             value={card.website}
             href={`https://${card.website.replace(/^https?:\/\//, "")}`}
           />
+        </div>
+
+        {/* QR code — scan to save contact */}
+        <div className="mb-4 flex flex-col items-center gap-1.5 text-foreground">
+          <div className="rounded-xl bg-white p-2.5">
+            <QRCodeSVG
+              value={buildVCard(card)}
+              size={104}
+              fgColor="#0f172a"
+              bgColor="#ffffff"
+              level="M"
+            />
+          </div>
+          <p className="text-center text-[10px] uppercase tracking-widest text-muted-foreground/50 [text-indent:0.1em]">Scan to save contact</p>
         </div>
 
         {/* AI Description */}

@@ -63,15 +63,14 @@ export function CardGrid({ cards, notes, customCategories, onCustomCategoriesCha
 
   return (
     <LayoutGroup>
-      {/* Masonry grid */}
-      <div className="columns-1 gap-6 sm:columns-2 xl:columns-3">
+      {/* Card grid — fills each row left-to-right, then wraps down */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
         {/* Upload card — always first */}
         <motion.div
           layout
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ y: spring }}
-          className="mb-6 break-inside-avoid"
           whileHover={{ y: -3, transition: { duration: 0.2 } }}
           style={{ willChange: "transform" }}
         >
@@ -103,7 +102,7 @@ export function CardGrid({ cards, notes, customCategories, onCustomCategoriesCha
                 }
               }}
               onClick={() => !isDeleting && setSelectedId(card.id)}
-              className="mb-6 cursor-pointer break-inside-avoid rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              className="cursor-pointer rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
               tabIndex={isDeleting ? -1 : 0}
               role="button"
               aria-label={`View ${card.name} at ${card.company}`}
