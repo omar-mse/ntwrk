@@ -7,12 +7,10 @@ import { useSearch } from "./search-provider"
 
 interface DashboardViewProps {
   initialCards: ContactCard[]
-  initialCustomCategories: CustomCategory[]
 }
 
-export function DashboardView({ initialCards, initialCustomCategories }: DashboardViewProps) {
+export function DashboardView({ initialCards }: DashboardViewProps) {
   const [cards, setCards] = useState<ContactCard[]>(initialCards)
-  const [customCategories, setCustomCategories] = useState<CustomCategory[]>(initialCustomCategories)
   const [notes, setNotes] = useState<Record<string, string>>(
     Object.fromEntries(initialCards.map((c) => [c.id, c.userNotes]))
   )
@@ -33,11 +31,6 @@ export function DashboardView({ initialCards, initialCustomCategories }: Dashboa
   function handleUpload(newCard: ContactCard) {
     setCards((prev) => [newCard, ...prev])
     setNotes((prev) => ({ ...prev, [newCard.id]: "" }))
-    setCustomCategories((prev) => {
-      const existing = new Set(prev.map((c) => c.name))
-      const fresh = newCard.tags.filter((t) => !existing.has(t.name))
-      return fresh.length > 0 ? [...prev, ...fresh] : prev
-    })
   }
 
   const handleNotesChange = useCallback((id: string, value: string) => {
@@ -95,8 +88,6 @@ export function DashboardView({ initialCards, initialCustomCategories }: Dashboa
       <CardGrid
         cards={filteredCards}
         notes={notes}
-        customCategories={customCategories}
-        onCustomCategoriesChange={setCustomCategories}
         onUpload={handleUpload}
         onNotesChange={handleNotesChange}
         onDelete={handleDelete}

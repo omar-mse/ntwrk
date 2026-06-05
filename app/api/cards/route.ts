@@ -1,19 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
-import { createCard, rowToCard } from "@/lib/db/cards"
-import { upsertCategoriesIgnoreDuplicates } from "@/lib/db/categories"
-import { categoryAccentColor } from "@/components/category-badge"
-import type { CustomCategory } from "@/lib/types"
+import { createCard } from "@/lib/db/cards"
+import { toPresetTags } from "@/components/category-badge"
 
 export async function POST(request: NextRequest) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const body = await request.json()
-  const tags: CustomCategory[] =
-    Array.isArray(body.tags) && body.tags.length > 0
-      ? body.tags
-      : [{ name: "Other", accent: categoryAccentColor.Other }]
+  // Categories are a fixed set — coerce any incoming tags to presets only.
+  const tags = toPresetTags(Array.isArray(body.tags) ? body.tags : undefined)
 
   const card = await createCard(session.user.id, {
     name: body.name || "Unknown",
@@ -26,8 +22,6 @@ export async function POST(request: NextRequest) {
     userNotes: "",
     tags,
   })
-
-  await upsertCategoriesIgnoreDuplicates(session.user.id, tags)
 
   return NextResponse.json(card)
 }

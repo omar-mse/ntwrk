@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { updateCard, deleteCard } from "@/lib/db/cards"
+import { toPresetTags } from "@/components/category-badge"
 
 export async function PATCH(
   request: NextRequest,
@@ -13,7 +14,8 @@ export async function PATCH(
   const body = await request.json()
   const result = await updateCard(session.user.id, id, {
     userNotes: body.userNotes,
-    tags: body.tags,
+    // Categories are a fixed set — coerce any incoming tags to presets only.
+    tags: body.tags !== undefined ? toPresetTags(body.tags) : undefined,
   })
 
   if (!result) return NextResponse.json({ error: "Not found" }, { status: 404 })

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import type { ContactCard, CustomCategory } from "@/lib/types"
 import type { Card } from "@prisma/client"
+import { toPresetTags } from "@/components/category-badge"
 
 export function rowToCard(row: Card): ContactCard {
   let tags: CustomCategory[] = []
@@ -9,6 +10,8 @@ export function rowToCard(row: Card): ContactCard {
   } catch {
     tags = []
   }
+  // Categories are a fixed set — coerce any legacy non-preset tags to "Other" on read.
+  tags = toPresetTags(tags)
   return {
     id: row.id,
     name: row.name,
@@ -73,7 +76,7 @@ export async function updateCard(
 
   let tags: CustomCategory[] = []
   try { tags = JSON.parse(row.tags) } catch { tags = [] }
-  return { userNotes: row.userNotes, tags }
+  return { userNotes: row.userNotes, tags: toPresetTags(tags) }
 }
 
 export async function deleteCard(userId: string, id: string): Promise<boolean> {

@@ -1,28 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { GoogleGenerativeAI } from "@google/generative-ai"
 import { auth } from "@/auth"
-import { listCategories } from "@/lib/db/categories"
-import { categoryAccentColor } from "@/components/category-badge"
+import { categoryAccentColor, coerceToPreset, PRESET_CATEGORIES } from "@/components/category-badge"
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-
-// Distinct from the preset category colours in `categoryAccentColor` so a custom
-// tag can never share a hue with a preset (e.g. Healthcare's red).
-const PALETTE = [
-  "#3b82f6", "#06b6d4", "#8b5cf6", "#f43f5e",
-  "#22c55e", "#a16207", "#0891b2", "#2563eb",
-  "#7e22ce", "#be185d", "#c2410c", "#15803d",
-]
-
-// Pick a palette colour the user isn't already using; fall back to a hash slot
-// once every colour is taken.
-function pickColor(name: string, used: Set<string> = new Set()): string {
-  const available = PALETTE.filter((c) => !used.has(c.toLowerCase()))
-  const pool = available.length > 0 ? available : PALETTE
-  let hash = 0
-  for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) | 0
-  return pool[Math.abs(hash) % pool.length]
-}
 
 export async function POST(request: NextRequest) {
   const session = await auth()
@@ -32,11 +13,8 @@ export async function POST(request: NextRequest) {
   const file = formData.get("file") as File | null
   if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 })
 
-  const userCats = await listCategories(session.user.id)
-
-  const categoryInstruction = userCats.length > 0
-    ? `Choose the most relevant category from the user's existing tags: ${userCats.map((c) => c.name).join(", ")}. If none of these fit, suggest a concise new category name (1–2 words, title case).`
-    : `Pick the single best matching category from this list: Tech, Design, Finance, Marketing, Legal, Healthcare, Real Estate, Education, Consulting, Sales, Media, Hospitality, Manufacturing, Retail, Other. Only invent a new 1–2 word title-case label if none of these fit.`
+  // Categories are a fixed set — the AI must pick exactly one preset, never invent a label.
+  const categoryInstruction = `Pick the single best matching category from this exact list: ${PRESET_CATEGORIES.join(", ")}. Use exactly one of these names verbatim. Never invent a new category — if none clearly fit, use "Other".`
 
   const prompt = `You are an expert OCR and business analyst. Examine this business card image and return ONLY a JSON object — no markdown, no code fences — with exactly these fields:
 {
@@ -89,17 +67,9 @@ The aiDescription should be 1–2 sentences summarising what the company likely 
     return NextResponse.json({ error: "Failed to parse AI response", raw: text }, { status: 500 })
   }
 
-  const rawCategory = (parsed.category || "Other").trim()
-
-  // If the AI picked an existing category (case-insensitive), use its exact name + stored accent.
-  // Otherwise it's a new tag — assign a deterministic color from the palette.
-  const existing = userCats.find((c) => c.name.toLowerCase() === rawCategory.toLowerCase())
-  const tagName  = existing?.name  ?? rawCategory
-  const usedColors = new Set<string>([
-    ...userCats.map((c) => c.accent.toLowerCase()),
-    ...Object.values(categoryAccentColor).map((c) => c.toLowerCase()),
-  ])
-  const accent   = existing?.accent ?? pickColor(rawCategory, usedColors)
+  // Coerce whatever the AI returned to a canonical preset (or "Other").
+  const tagName = coerceToPreset(parsed.category || "Other")
+  const accent  = categoryAccentColor[tagName]
 
   return NextResponse.json({
     id: "",

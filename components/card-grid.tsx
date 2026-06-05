@@ -12,15 +12,13 @@ import { spring } from "@/lib/motion"
 interface CardGridProps {
   cards: ContactCardType[]
   notes: Record<string, string>
-  customCategories: CustomCategory[]
-  onCustomCategoriesChange: (cats: CustomCategory[]) => void
   onUpload: (card: ContactCardType) => void
   onNotesChange: (id: string, value: string) => void
   onDelete: (id: string) => void
   onTagsChange: (id: string, tags: CustomCategory[]) => void
 }
 
-export function CardGrid({ cards, notes, customCategories, onCustomCategoriesChange, onUpload, onNotesChange, onDelete, onTagsChange }: CardGridProps) {
+export function CardGrid({ cards, notes, onUpload, onNotesChange, onDelete, onTagsChange }: CardGridProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [previewCard, setPreviewCard] = useState<ContactCardType | null>(null)
   const [savingPreview, setSavingPreview] = useState(false)
@@ -188,8 +186,6 @@ export function CardGrid({ cards, notes, customCategories, onCustomCategoriesCha
                 <CardDetail
                   card={selectedCard}
                   notes={notes[selectedCard.id] ?? selectedCard.userNotes}
-                  customCategories={customCategories}
-                  onCustomCategoriesChange={onCustomCategoriesChange}
                   onNotesChange={(val) => onNotesChange(selectedCard.id, val)}
                   onClose={handleClose}
                   onDelete={() => handleDelete(selectedCard.id)}

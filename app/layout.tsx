@@ -46,10 +46,12 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${displayFont.variable} ${playfairDisplay.variable} h-full antialiased`}
     >
       <head>
-        {/* Inline FOUC-prevention: runs before React hydrates, sets .dark on <html> */}
+        {/* Inline FOUC-prevention: runs before React hydrates, sets .dark on <html>.
+            Also purges the obsolete hidden-presets key so every user gets the full
+            (now fixed) preset list back — the hide-preset feature was removed. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('cards-theme');document.documentElement.classList.toggle('dark',t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches))}catch(e){}`,
+            __html: `try{var t=localStorage.getItem('cards-theme');document.documentElement.classList.toggle('dark',t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches));localStorage.removeItem('ntwrk:hidden-presets')}catch(e){}`,
           }}
         />
       </head>

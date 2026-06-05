@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { auth } from "@/auth"
-import { listCategories, upsertCategory } from "@/lib/db/categories"
+import { listCategories } from "@/lib/db/categories"
 
 export async function GET() {
   const session = await auth()
@@ -10,15 +10,10 @@ export async function GET() {
   return NextResponse.json(categories)
 }
 
-export async function POST(request: NextRequest) {
-  const session = await auth()
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-  const { name, accent } = await request.json()
-  if (!name?.trim() || !accent) {
-    return NextResponse.json({ error: "name and accent are required" }, { status: 400 })
-  }
-
-  const category = await upsertCategory(session.user.id, name.trim(), accent)
-  return NextResponse.json(category)
+// Categories are a fixed preset set — creating custom categories is no longer allowed.
+export async function POST() {
+  return NextResponse.json(
+    { error: "Custom categories are not allowed; choose from the preset categories." },
+    { status: 403 }
+  )
 }
